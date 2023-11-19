@@ -124,7 +124,7 @@ if(isset($_POST['1m'])){
         $dataHistorical = json_encode([
             'exchange' => $_GET['exchange'],
             'symboltoken' => $_GET['token'],
-            'interval' => 'ONE_HOUR',
+            'interval' => 'ONE_MINUTE',
             'fromdate' => $fromDateTime,
             'todate' => $toDateTime
         ]);
@@ -283,7 +283,7 @@ $dataArray = json_decode($responseHistorical, true)['data'];
 $formattedData = [];
 foreach ($dataArray as $item) {
     $formattedData[] = [
-        'time'   => strtotime($item[0]) + 19800,
+        'time'   => strtotime($item[0]) + 19800,// we faced an issue in converting the timestamp given by the angel historical API. The time when converted to unix seconds was shown 5.5Hrs behind and hence we have added the difference of 5.5Hrs in seconds which is 19800.
         'open'   => $item[1],
         'high'   => $item[2],
         'low'    => $item[3],
@@ -390,23 +390,6 @@ include 'getChartData.php';
             timeVisible: <?php echo $setTimeVisible ?>, // Show time on the time axis
             secondsVisible: false, // You can adjust this based on your data
         },
-
-        handleScroll: {
-        vertTouchDrag: false, // Disable vertical scroll by touch-drag
-    },
-    handleScale: {
-        pinch: false, // Disable pinch to zoom
-    },
-    // Enable crosshair to show tooltips
-    crosshair: {
-        mode: LightweightCharts.CrosshairMode.Normal,
-    },
-    // Enable hover tooltip for the main series
-    localization: {
-        timeFormatter: businessDayOrTimestamp => {
-            return new Date(businessDayOrTimestamp * 1000).toLocaleDateString(); // Customize the time format
-        },
-    },
     };
 
 
@@ -427,43 +410,41 @@ include 'getChartData.php';
         borderColor: "#71649C",
     });
 
+    chart.applyOptions({
+        crosshair: {
+            // hide the horizontal crosshair line
+            horzLine: {
+                visible: false,
+                labelVisible: false,
+            },
+            // hide the vertical crosshair label
+            vertLine: {
+                labelVisible: false,
+            },
+        },
+        // hide the grid lines
+        grid: {
+            vertLines: {
+                visible: false,
+            },
+            horzLines: {
+                visible: false,
+            },
+        },
+    });
+
+
+    
+
     const candleStickData = generateCandlestickData();
 
     // Create the Main Series (Candlesticks)
     const mainSeries = chart.addCandlestickSeries();
 
-    // Enable hover tooltip for the main series
-    mainSeries.setCursorBeamEnabled(true);
-
-    // Set up tooltip for the main series
-chart.subscribeCrosshairMove(param => {
-    if (param.time) {
-        // Retrieve data for the hovered time point
-        const hoveredData = mainSeries.search(param.time, { direction: LightweightCharts.SearchDirection.Left });
-
-        // Display tooltip content (customize as needed)
-        const tooltipContent = `Open: ${hoveredData.open}\nHigh: ${hoveredData.high}\nLow: ${hoveredData.low}\nClose: ${hoveredData.close}`;
-
-        // Update tooltip with the content
-        chart.applyOptions({
-            watermark: {
-                visible: true,
-                text: tooltipContent,
-            },
-        });
-    } else {
-        // Hide tooltip when not hovering over a data point
-        chart.applyOptions({
-            watermark: {
-                visible: false,
-            },
-        });
-    }
-});
-
     // Set the data for the Main Series, adjusting for time zone offset
     mainSeries.setData(candleStickData);
     
+
     // Create the Volume Series (Histogram)
     const volumeData = candleStickData.map(datapoint => ({
     time: datapoint.time,
@@ -497,6 +478,116 @@ chart.subscribeCrosshairMove(param => {
     // Set the data for the Volume Series
     volumeSeries.setData(volumeData);
 
+    /* Code to embed a tooltip  starts */
+    const container = document.getElementById('chart1');
+
+    const toolTipWidth = 160;
+    const toolTipHeight = 180;
+    const toolTipMargin = 15;
+    // Create and style the tooltip html element
+    const toolTip = document.createElement('div');
+    toolTip.style = `width: 160px; height: 180px; position: absolute; display: none; padding: 8px; box-sizing: border-box; font-size: 12px; text-align: left; z-index: 1000; top: 12px; left: 12px; pointer-events: none; border: 1px solid; border-radius: 2px;font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;`;
+    toolTip.style.background = 'black';
+    toolTip.style.color = 'white';
+    toolTip.style.borderColor = '#2962FF';
+    container.appendChild(toolTip);
+
+    // update tooltip
+    chart.subscribeCrosshairMove(param => {
+        if (
+            param.point === undefined ||
+            !param.time ||
+            param.point.x < 0 ||
+            param.point.x > container.clientWidth ||
+            param.point.y < 0 ||
+            param.point.y > container.clientHeight
+        ) {
+            toolTip.style.display = 'none';
+        } else {
+            // time will be in the same format that we supplied to setData.
+            // thus it will be YYYY-MM-DD
+            var timestamp = param.time;
+
+            // Create a new Date object with the timestamp in milliseconds
+            var date = new Date(timestamp * 1000);
+
+            // Subtract 5 hours and 30 minutes
+            date.setHours(date.getHours() - 5);
+            date.setMinutes(date.getMinutes() - 30);
+
+            // Get the individual components of the adjusted date
+            var year = date.getFullYear();
+            var month = ("0" + (date.getMonth() + 1)).slice(-2); // Months are zero-based
+            var day = ("0" + date.getDate()).slice(-2);
+            var hours = ("0" + date.getHours()).slice(-2);
+            var minutes = ("0" + date.getMinutes()).slice(-2);
+            var seconds = ("0" + date.getSeconds()).slice(-2);
+
+            //show hours and minutes only if it is there in the data
+            if(hours === '00'){
+            // Create a formatted string with the date and time
+            var formattedDate = year + "-" + month + "-" + day //+ " " + hours + ":" + minutes + ":" + seconds;
+            } else{
+            // Create a formatted string with the date and time
+            var formattedDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes// + ":" + seconds;
+            }
+
+
+            const dateStr = formattedDate;
+            toolTip.style.display = 'block';
+            const data = param.seriesData.get(mainSeries);
+            const dataVol = param.seriesData.get(volumeSeries);
+            const open = data.value !== undefined ? data.value : data.open;
+            const high = data.value !== undefined ? data.value : data.high;
+            const low = data.value !== undefined ? data.value : data.low;
+            const close = data.value !== undefined ? data.value : data.close;
+            const volume = dataVol.value !== undefined ? dataVol.value : dataVol.volume;
+            const formattedVolume = volume.toLocaleString();
+            toolTip.innerHTML = `<div style="color: ${'#2962FF'};font-size: 15px;"><?php echo $_GET['symbol'];?></div>
+            <div style="font-size: 15px; margin: 4px 0px; color: ${'white'}">
+                Open: ${Math.round(100 * open) / 100}
+                </div>
+                <div style="font-size: 15px; margin: 4px 0px; color: ${'white'}">
+                High: ${Math.round(100 * high) / 100}
+                </div>
+                <div style="font-size: 15px; margin: 4px 0px; color: ${'white'}">
+                Low: ${Math.round(100 * low) / 100}
+                </div>
+                <div style="font-size: 15px; margin: 4px 0px; color: ${'white'}">
+                Close: ${Math.round(100 * close) / 100}
+                </div>
+                <div style="font-size: 15px; margin: 4px 0px; color: ${'white'}">
+                Volume: ${formattedVolume}
+                </div>
+                <div style="color: ${'white'};font-size: 13px;">
+                ${dateStr}
+                </div>`;
+
+            const coordinate = mainSeries.priceToCoordinate(open);
+            let shiftedCoordinate = param.point.x - 50;
+            if (coordinate === null) {
+                return;
+            }
+            shiftedCoordinate = Math.max(
+                0,
+                Math.min(container.clientWidth - toolTipWidth, shiftedCoordinate)
+            );
+            const coordinateY =
+                coordinate - toolTipHeight - toolTipMargin > 0
+                    ? coordinate - toolTipHeight - toolTipMargin
+                    : Math.max(
+                        0,
+                        Math.min(
+                            container.clientHeight - toolTipHeight - toolTipMargin,
+                            coordinate + toolTipMargin
+                        )
+                    );
+            toolTip.style.left = shiftedCoordinate + 'px';
+            toolTip.style.top = coordinateY + 'px';
+        }
+    });
+    /*Code to embed a tooltip ends*/
+    
    // chart.timeScale().fitContent();
 </script>
 
