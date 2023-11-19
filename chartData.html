@@ -1,0 +1,3315 @@
+<!-- Styles -->
+<style>
+    #chartcontrols {
+      height: auto;
+      padding: 5px 5px 0 16px;
+      max-width: 100%;
+    }
+    
+    #chartdiv {
+      width: 100%;
+      height: 600px;
+      max-width: 100%;
+    }
+    </style>
+    
+    <!-- Resources -->
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/stock.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    
+    <!-- Chart code -->
+    <script>
+    am5.ready(function() {
+    
+    // Create root element
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/getting-started/#Root_element
+    var root = am5.Root.new("chartdiv");
+    
+    
+    // Set themes
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/concepts/themes/
+    root.setThemes([
+      am5themes_Animated.new(root)
+    ]);
+    
+    
+    // Create a stock chart
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/stock/#Instantiating_the_chart
+    var stockChart = root.container.children.push(am5stock.StockChart.new(root, {
+    }));
+    
+    
+    // Set global number format
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/concepts/formatters/formatting-numbers/
+    root.numberFormatter.set("numberFormat", "#,###.00");
+    
+    
+    // Create a main stock panel (chart)
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/stock/#Adding_panels
+    var mainPanel = stockChart.panels.push(am5stock.StockPanel.new(root, {
+      wheelY: "zoomX",
+      panX: true,
+      panY: true
+    }));
+    
+    
+    // Create value axis
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/axes/
+    var valueAxis = mainPanel.yAxes.push(am5xy.ValueAxis.new(root, {
+      renderer: am5xy.AxisRendererY.new(root, {
+        pan: "zoom"
+      }),
+      extraMin: 0.1, // adds some space for for main series
+      tooltip: am5.Tooltip.new(root, {}),
+      numberFormat: "#,###.00",
+      extraTooltipPrecision: 2
+    }));
+    
+    var dateAxis = mainPanel.xAxes.push(am5xy.GaplessDateAxis.new(root, {
+      baseInterval: {
+        timeUnit: "minute",
+        count: 1
+      },
+      renderer: am5xy.AxisRendererX.new(root, {}),
+      tooltip: am5.Tooltip.new(root, {})
+    }));
+    
+    
+    // Add series
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/series/
+    var valueSeries = mainPanel.series.push(am5xy.CandlestickSeries.new(root, {
+      name: "SBIN",
+      clustered: false,
+      valueXField: "Date",
+      valueYField: "Close",
+      highValueYField: "High",
+      lowValueYField: "Low",
+      openValueYField: "Open",
+      calculateAggregates: true,
+      xAxis: dateAxis,
+      yAxis: valueAxis,
+      legendValueText: "open: [bold]{openValueY}[/] high: [bold]{highValueY}[/] low: [bold]{lowValueY}[/] close: [bold]{valueY}[/]",
+      legendRangeValueText: ""
+    }));
+    
+    
+    // Set main value series
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/stock/#Setting_main_series
+    stockChart.set("stockSeries", valueSeries);
+    
+    
+    // Add a stock legend
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/stock/stock-legend/
+    var valueLegend = mainPanel.plotContainer.children.push(am5stock.StockLegend.new(root, {
+      stockChart: stockChart
+    }));
+    
+    
+    // Create volume axis
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/axes/
+    var volumeAxisRenderer = am5xy.AxisRendererY.new(root, {
+      inside: true
+    });
+    
+    volumeAxisRenderer.labels.template.set("forceHidden", true);
+    volumeAxisRenderer.grid.template.set("forceHidden", true);
+    
+    var volumeValueAxis = mainPanel.yAxes.push(am5xy.ValueAxis.new(root, {
+      numberFormat: "#.#a",
+      height: am5.percent(20),
+      y: am5.percent(100),
+      centerY: am5.percent(100),
+      renderer: volumeAxisRenderer
+    }));
+    
+    // Add series
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/series/
+    var volumeSeries = mainPanel.series.push(am5xy.ColumnSeries.new(root, {
+      name: "Volume",
+      clustered: false,
+      valueXField: "Date",
+      valueYField: "Volume",
+      xAxis: dateAxis,
+      yAxis: volumeValueAxis,
+      legendValueText: "[bold]{valueY.formatNumber('#,###.0a')}[/]"
+    }));
+    
+    volumeSeries.columns.template.setAll({
+      strokeOpacity: 0,
+      fillOpacity: 0.5
+    });
+    
+    // color columns by stock rules
+    volumeSeries.columns.template.adapters.add("fill", function(fill, target) {
+      var dataItem = target.dataItem;
+      if (dataItem) {
+        return stockChart.getVolumeColor(dataItem);
+      }
+      return fill;
+    })
+    
+    
+    // Set main series
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/stock/#Setting_main_series
+    stockChart.set("volumeSeries", volumeSeries);
+    valueLegend.data.setAll([valueSeries, volumeSeries]);
+    
+    
+    // Add cursor(s)
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/cursor/
+    mainPanel.set("cursor", am5xy.XYCursor.new(root, {
+      yAxis: valueAxis,
+      xAxis: dateAxis,
+      snapToSeries: [valueSeries],
+      snapToSeriesBy: "y!"
+    }));
+    
+    
+    // Add scrollbar
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/scrollbars/
+    var scrollbar = mainPanel.set("scrollbarX", am5xy.XYChartScrollbar.new(root, {
+      orientation: "horizontal",
+      height: 50
+    }));
+    stockChart.toolsContainer.children.push(scrollbar);
+    
+    var sbDateAxis = scrollbar.chart.xAxes.push(am5xy.GaplessDateAxis.new(root, {
+      baseInterval: {
+        timeUnit: "minute",
+        count: 1
+      },
+      renderer: am5xy.AxisRendererX.new(root, {})
+    }));
+    
+    var sbValueAxis = scrollbar.chart.yAxes.push(am5xy.ValueAxis.new(root, {
+      renderer: am5xy.AxisRendererY.new(root, {})
+    }));
+    
+    var sbSeries = scrollbar.chart.series.push(am5xy.LineSeries.new(root, {
+      valueYField: "Close",
+      valueXField: "Date",
+      xAxis: sbDateAxis,
+      yAxis: sbValueAxis
+    }));
+    
+    sbSeries.fills.template.setAll({
+      visible: true,
+      fillOpacity: 0.3
+    });
+    
+    // Set up series type switcher
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/stock/toolbar/series-type-control/
+    var seriesSwitcher = am5stock.SeriesTypeControl.new(root, {
+      stockChart: stockChart
+    });
+    
+    seriesSwitcher.events.on("selected", function(ev) {
+      setSeriesType(ev.item.id);
+    });
+    
+    function getNewSettings(series) {
+      var newSettings = [];
+      am5.array.each(["name", "valueYField", "highValueYField", "lowValueYField", "openValueYField", "calculateAggregates", "valueXField", "xAxis", "yAxis", "legendValueText", "stroke", "fill"], function(setting) {
+        newSettings[setting] = series.get(setting);
+      });
+      return newSettings;
+    }
+    
+    function setSeriesType(seriesType) {
+      // Get current series and its settings
+      var currentSeries = stockChart.get("stockSeries");
+      var newSettings = getNewSettings(currentSeries);
+    
+      // Remove previous series
+      var data = currentSeries.data.values;
+      mainPanel.series.removeValue(currentSeries);
+    
+      // Create new series
+      var series;
+      switch (seriesType) {
+        case "line":
+          series = mainPanel.series.push(am5xy.LineSeries.new(root, newSettings));
+          break;
+        case "candlestick":
+        case "procandlestick":
+          newSettings.clustered = false;
+          series = mainPanel.series.push(am5xy.CandlestickSeries.new(root, newSettings));
+          if (seriesType == "procandlestick") {
+            series.columns.template.get("themeTags").push("pro");
+          }
+          break;
+        case "ohlc":
+          newSettings.clustered = false;
+          series = mainPanel.series.push(am5xy.OHLCSeries.new(root, newSettings));
+          break;
+      }
+    
+      // Set new series as stockSeries
+      if (series) {
+        valueLegend.data.removeValue(currentSeries);
+        series.data.setAll(data);
+        stockChart.set("stockSeries", series);
+        var cursor = mainPanel.get("cursor");
+        if (cursor) {
+          cursor.set("snapToSeries", [series]);
+        }
+        valueLegend.data.insertIndex(0, series);
+      }
+    }
+    
+    
+    // Stock toolbar
+    // -------------------------------------------------------------------------------
+    // https://www.amcharts.com/docs/v5/charts/stock/toolbar/
+    var toolbar = am5stock.StockToolbar.new(root, {
+      container: document.getElementById("chartcontrols"),
+      stockChart: stockChart,
+      controls: [
+        am5stock.IndicatorControl.new(root, {
+          stockChart: stockChart,
+          legend: valueLegend
+        }),
+        seriesSwitcher,
+        am5stock.DrawingControl.new(root, {
+          stockChart: stockChart
+        }),
+        am5stock.ResetControl.new(root, {
+          stockChart: stockChart
+        }),
+        am5stock.SettingsControl.new(root, {
+          stockChart: stockChart
+        })
+      ]
+    })
+    
+    // data
+    var data = [
+    {
+        "Date": 1700192700000,
+        "Open": 574.5,
+        "High": 574.5,
+        "Low": 566.2,
+        "Close": 569.6,
+        "Volume": 819839
+    },
+    {
+        "Date": 1700192760000,
+        "Open": 568.35,
+        "High": 569.3,
+        "Low": 568.35,
+        "Close": 569,
+        "Volume": 423597
+    },
+    {
+        "Date": 1700192820000,
+        "Open": 569.1,
+        "High": 570.35,
+        "Low": 569,
+        "Close": 569.9,
+        "Volume": 420847
+    },
+    {
+        "Date": 1700192880000,
+        "Open": 570.05,
+        "High": 570.65,
+        "Low": 568.45,
+        "Close": 569.25,
+        "Volume": 530427
+    },
+    {
+        "Date": 1700192940000,
+        "Open": 569.3,
+        "High": 569.8,
+        "Low": 568.3,
+        "Close": 568.7,
+        "Volume": 380889
+    },
+    {
+        "Date": 1700193000000,
+        "Open": 568.55,
+        "High": 568.8,
+        "Low": 567.4,
+        "Close": 568.5,
+        "Volume": 396256
+    },
+    {
+        "Date": 1700193060000,
+        "Open": 568.5,
+        "High": 568.8,
+        "Low": 567.4,
+        "Close": 568.35,
+        "Volume": 401278
+    },
+    {
+        "Date": 1700193120000,
+        "Open": 568.4,
+        "High": 568.5,
+        "Low": 567.9,
+        "Close": 568.35,
+        "Volume": 399186
+    },
+    {
+        "Date": 1700193180000,
+        "Open": 568.3,
+        "High": 569.15,
+        "Low": 568.15,
+        "Close": 569.05,
+        "Volume": 189195
+    },
+    {
+        "Date": 1700193240000,
+        "Open": 569,
+        "High": 569.1,
+        "Low": 568.3,
+        "Close": 569.1,
+        "Volume": 172619
+    },
+    {
+        "Date": 1700193300000,
+        "Open": 569.1,
+        "High": 569.95,
+        "Low": 568.8,
+        "Close": 569.8,
+        "Volume": 119106
+    },
+    {
+        "Date": 1700193360000,
+        "Open": 569.7,
+        "High": 570.6,
+        "Low": 569.5,
+        "Close": 570.5,
+        "Volume": 169622
+    },
+    {
+        "Date": 1700193420000,
+        "Open": 570.5,
+        "High": 571.5,
+        "Low": 570.3,
+        "Close": 571.5,
+        "Volume": 185324
+    },
+    {
+        "Date": 1700193480000,
+        "Open": 571.7,
+        "High": 571.9,
+        "Low": 571.5,
+        "Close": 571.9,
+        "Volume": 173883
+    },
+    {
+        "Date": 1700193540000,
+        "Open": 571.9,
+        "High": 571.9,
+        "Low": 571.25,
+        "Close": 571.5,
+        "Volume": 149412
+    },
+    {
+        "Date": 1700193600000,
+        "Open": 571.2,
+        "High": 571.45,
+        "Low": 570.35,
+        "Close": 570.8,
+        "Volume": 224287
+    },
+    {
+        "Date": 1700193660000,
+        "Open": 570.9,
+        "High": 571.3,
+        "Low": 570.4,
+        "Close": 571.1,
+        "Volume": 119112
+    },
+    {
+        "Date": 1700193720000,
+        "Open": 571.05,
+        "High": 571.4,
+        "Low": 570.35,
+        "Close": 571,
+        "Volume": 178990
+    },
+    {
+        "Date": 1700193780000,
+        "Open": 571,
+        "High": 571.15,
+        "Low": 570.35,
+        "Close": 570.35,
+        "Volume": 54765
+    },
+    {
+        "Date": 1700193840000,
+        "Open": 570.45,
+        "High": 570.9,
+        "Low": 570.25,
+        "Close": 570.55,
+        "Volume": 53414
+    },
+    {
+        "Date": 1700193900000,
+        "Open": 570.6,
+        "High": 570.75,
+        "Low": 570.25,
+        "Close": 570.75,
+        "Volume": 56844
+    },
+    {
+        "Date": 1700193960000,
+        "Open": 570.75,
+        "High": 570.75,
+        "Low": 570.5,
+        "Close": 570.65,
+        "Volume": 34918
+    },
+    {
+        "Date": 1700194020000,
+        "Open": 570.6,
+        "High": 571.05,
+        "Low": 570.6,
+        "Close": 571,
+        "Volume": 64729
+    },
+    {
+        "Date": 1700194080000,
+        "Open": 570.9,
+        "High": 571.15,
+        "Low": 570.5,
+        "Close": 570.9,
+        "Volume": 96530
+    },
+    {
+        "Date": 1700194140000,
+        "Open": 570.8,
+        "High": 571.2,
+        "Low": 570.75,
+        "Close": 571,
+        "Volume": 60211
+    },
+    {
+        "Date": 1700194200000,
+        "Open": 571,
+        "High": 571.2,
+        "Low": 570.85,
+        "Close": 570.95,
+        "Volume": 81340
+    },
+    {
+        "Date": 1700194260000,
+        "Open": 571.1,
+        "High": 571.45,
+        "Low": 570.8,
+        "Close": 571.25,
+        "Volume": 160509
+    },
+    {
+        "Date": 1700194320000,
+        "Open": 571.35,
+        "High": 571.45,
+        "Low": 571,
+        "Close": 571.25,
+        "Volume": 70618
+    },
+    {
+        "Date": 1700194380000,
+        "Open": 571.2,
+        "High": 571.35,
+        "Low": 570.8,
+        "Close": 571,
+        "Volume": 157772
+    },
+    {
+        "Date": 1700194440000,
+        "Open": 570.9,
+        "High": 570.9,
+        "Low": 570.3,
+        "Close": 570.5,
+        "Volume": 114098
+    },
+    {
+        "Date": 1700194500000,
+        "Open": 570.35,
+        "High": 570.6,
+        "Low": 570.3,
+        "Close": 570.3,
+        "Volume": 64227
+    },
+    {
+        "Date": 1700194560000,
+        "Open": 570.4,
+        "High": 570.8,
+        "Low": 570.2,
+        "Close": 570.8,
+        "Volume": 62888
+    },
+    {
+        "Date": 1700194620000,
+        "Open": 570.9,
+        "High": 571.05,
+        "Low": 570.65,
+        "Close": 570.85,
+        "Volume": 49455
+    },
+    {
+        "Date": 1700194680000,
+        "Open": 570.95,
+        "High": 571.15,
+        "Low": 570.5,
+        "Close": 570.6,
+        "Volume": 62228
+    },
+    {
+        "Date": 1700194740000,
+        "Open": 570.6,
+        "High": 570.85,
+        "Low": 570.5,
+        "Close": 570.85,
+        "Volume": 58631
+    },
+    {
+        "Date": 1700194800000,
+        "Open": 570.7,
+        "High": 570.75,
+        "Low": 570.4,
+        "Close": 570.65,
+        "Volume": 58926
+    },
+    {
+        "Date": 1700194860000,
+        "Open": 570.55,
+        "High": 570.95,
+        "Low": 570.45,
+        "Close": 570.6,
+        "Volume": 51238
+    },
+    {
+        "Date": 1700194920000,
+        "Open": 570.6,
+        "High": 570.9,
+        "Low": 570.45,
+        "Close": 570.6,
+        "Volume": 117480
+    },
+    {
+        "Date": 1700194980000,
+        "Open": 570.5,
+        "High": 570.75,
+        "Low": 570.4,
+        "Close": 570.5,
+        "Volume": 56346
+    },
+    {
+        "Date": 1700195040000,
+        "Open": 570.6,
+        "High": 570.7,
+        "Low": 570.2,
+        "Close": 570.45,
+        "Volume": 66808
+    },
+    {
+        "Date": 1700195100000,
+        "Open": 570.4,
+        "High": 570.55,
+        "Low": 570.3,
+        "Close": 570.5,
+        "Volume": 37287
+    },
+    {
+        "Date": 1700195160000,
+        "Open": 570.4,
+        "High": 570.5,
+        "Low": 570.15,
+        "Close": 570.3,
+        "Volume": 37773
+    },
+    {
+        "Date": 1700195220000,
+        "Open": 570.25,
+        "High": 570.45,
+        "Low": 570.15,
+        "Close": 570.35,
+        "Volume": 47962
+    },
+    {
+        "Date": 1700195280000,
+        "Open": 570.25,
+        "High": 570.45,
+        "Low": 569.9,
+        "Close": 569.95,
+        "Volume": 242810
+    },
+    {
+        "Date": 1700195340000,
+        "Open": 569.8,
+        "High": 570.45,
+        "Low": 569.5,
+        "Close": 570.25,
+        "Volume": 93660
+    },
+    {
+        "Date": 1700195400000,
+        "Open": 570.25,
+        "High": 570.5,
+        "Low": 570,
+        "Close": 570.3,
+        "Volume": 53625
+    },
+    {
+        "Date": 1700195460000,
+        "Open": 570.3,
+        "High": 570.6,
+        "Low": 570,
+        "Close": 570.4,
+        "Volume": 53052
+    },
+    {
+        "Date": 1700195520000,
+        "Open": 570.3,
+        "High": 570.35,
+        "Low": 570.05,
+        "Close": 570.1,
+        "Volume": 42319
+    },
+    {
+        "Date": 1700195580000,
+        "Open": 570.35,
+        "High": 570.35,
+        "Low": 570,
+        "Close": 570.25,
+        "Volume": 57639
+    },
+    {
+        "Date": 1700195640000,
+        "Open": 570.1,
+        "High": 570.25,
+        "Low": 570,
+        "Close": 570.15,
+        "Volume": 42137
+    },
+    {
+        "Date": 1700195700000,
+        "Open": 570.15,
+        "High": 570.3,
+        "Low": 570,
+        "Close": 570.1,
+        "Volume": 57663
+    },
+    {
+        "Date": 1700195760000,
+        "Open": 570.1,
+        "High": 570.25,
+        "Low": 569.6,
+        "Close": 569.6,
+        "Volume": 69058
+    },
+    {
+        "Date": 1700195820000,
+        "Open": 569.5,
+        "High": 570,
+        "Low": 569.5,
+        "Close": 569.7,
+        "Volume": 106422
+    },
+    {
+        "Date": 1700195880000,
+        "Open": 569.7,
+        "High": 569.7,
+        "Low": 569,
+        "Close": 569,
+        "Volume": 209309
+    },
+    {
+        "Date": 1700195940000,
+        "Open": 569,
+        "High": 569.25,
+        "Low": 568.7,
+        "Close": 568.95,
+        "Volume": 391269
+    },
+    {
+        "Date": 1700196000000,
+        "Open": 568.95,
+        "High": 569.15,
+        "Low": 568.7,
+        "Close": 568.75,
+        "Volume": 78010
+    },
+    {
+        "Date": 1700196060000,
+        "Open": 568.75,
+        "High": 568.95,
+        "Low": 568.15,
+        "Close": 568.35,
+        "Volume": 128114
+    },
+    {
+        "Date": 1700196120000,
+        "Open": 568.35,
+        "High": 568.35,
+        "Low": 567.8,
+        "Close": 567.8,
+        "Volume": 781795
+    },
+    {
+        "Date": 1700196180000,
+        "Open": 567.95,
+        "High": 568.2,
+        "Low": 567.25,
+        "Close": 567.85,
+        "Volume": 303285
+    },
+    {
+        "Date": 1700196240000,
+        "Open": 567.9,
+        "High": 568,
+        "Low": 566.75,
+        "Close": 566.85,
+        "Volume": 510476
+    },
+    {
+        "Date": 1700196300000,
+        "Open": 566.55,
+        "High": 566.65,
+        "Low": 565.05,
+        "Close": 565.4,
+        "Volume": 448592
+    },
+    {
+        "Date": 1700196360000,
+        "Open": 565.25,
+        "High": 566.6,
+        "Low": 565,
+        "Close": 566.6,
+        "Volume": 381825
+    },
+    {
+        "Date": 1700196420000,
+        "Open": 566.45,
+        "High": 567,
+        "Low": 565.9,
+        "Close": 566.75,
+        "Volume": 108440
+    },
+    {
+        "Date": 1700196480000,
+        "Open": 566.75,
+        "High": 566.85,
+        "Low": 565.2,
+        "Close": 565.2,
+        "Volume": 417211
+    },
+    {
+        "Date": 1700196540000,
+        "Open": 565,
+        "High": 566.2,
+        "Low": 564.7,
+        "Close": 565.6,
+        "Volume": 678985
+    },
+    {
+        "Date": 1700196600000,
+        "Open": 565.8,
+        "High": 565.95,
+        "Low": 565.2,
+        "Close": 565.95,
+        "Volume": 324526
+    },
+    {
+        "Date": 1700196660000,
+        "Open": 565.8,
+        "High": 566.5,
+        "Low": 565.8,
+        "Close": 566.1,
+        "Volume": 80318
+    },
+    {
+        "Date": 1700196720000,
+        "Open": 566.05,
+        "High": 566.4,
+        "Low": 565.9,
+        "Close": 566.05,
+        "Volume": 107791
+    },
+    {
+        "Date": 1700196780000,
+        "Open": 566,
+        "High": 566.5,
+        "Low": 565.45,
+        "Close": 565.45,
+        "Volume": 96531
+    },
+    {
+        "Date": 1700196840000,
+        "Open": 565.4,
+        "High": 566.45,
+        "Low": 565.3,
+        "Close": 566.45,
+        "Volume": 64866
+    },
+    {
+        "Date": 1700196900000,
+        "Open": 566.45,
+        "High": 566.65,
+        "Low": 566.25,
+        "Close": 566.5,
+        "Volume": 61840
+    },
+    {
+        "Date": 1700196960000,
+        "Open": 566.4,
+        "High": 566.75,
+        "Low": 566.35,
+        "Close": 566.6,
+        "Volume": 82542
+    },
+    {
+        "Date": 1700197020000,
+        "Open": 566.6,
+        "High": 566.9,
+        "Low": 566.55,
+        "Close": 566.6,
+        "Volume": 53788
+    },
+    {
+        "Date": 1700197080000,
+        "Open": 566.6,
+        "High": 566.9,
+        "Low": 566.5,
+        "Close": 566.55,
+        "Volume": 67964
+    },
+    {
+        "Date": 1700197140000,
+        "Open": 566.4,
+        "High": 567,
+        "Low": 565.85,
+        "Close": 567,
+        "Volume": 125067
+    },
+    {
+        "Date": 1700197200000,
+        "Open": 567.2,
+        "High": 567.25,
+        "Low": 566.6,
+        "Close": 566.85,
+        "Volume": 72881
+    },
+    {
+        "Date": 1700197260000,
+        "Open": 566.65,
+        "High": 566.95,
+        "Low": 566.6,
+        "Close": 566.9,
+        "Volume": 34838
+    },
+    {
+        "Date": 1700197320000,
+        "Open": 566.8,
+        "High": 567,
+        "Low": 566.7,
+        "Close": 567,
+        "Volume": 35649
+    },
+    {
+        "Date": 1700197380000,
+        "Open": 566.9,
+        "High": 567.1,
+        "Low": 566.85,
+        "Close": 567.1,
+        "Volume": 35387
+    },
+    {
+        "Date": 1700197440000,
+        "Open": 567.05,
+        "High": 567.4,
+        "Low": 567,
+        "Close": 567.35,
+        "Volume": 41920
+    },
+    {
+        "Date": 1700197500000,
+        "Open": 567.35,
+        "High": 567.4,
+        "Low": 566.95,
+        "Close": 567.4,
+        "Volume": 57863
+    },
+    {
+        "Date": 1700197560000,
+        "Open": 567.4,
+        "High": 567.4,
+        "Low": 567.1,
+        "Close": 567.3,
+        "Volume": 28033
+    },
+    {
+        "Date": 1700197620000,
+        "Open": 567.2,
+        "High": 567.5,
+        "Low": 567,
+        "Close": 567.4,
+        "Volume": 45756
+    },
+    {
+        "Date": 1700197680000,
+        "Open": 567.4,
+        "High": 567.55,
+        "Low": 567.25,
+        "Close": 567.45,
+        "Volume": 29707
+    },
+    {
+        "Date": 1700197740000,
+        "Open": 567.5,
+        "High": 567.5,
+        "Low": 567.1,
+        "Close": 567.25,
+        "Volume": 25948
+    },
+    {
+        "Date": 1700197800000,
+        "Open": 567.3,
+        "High": 567.6,
+        "Low": 567.2,
+        "Close": 567.6,
+        "Volume": 33454
+    },
+    {
+        "Date": 1700197860000,
+        "Open": 567.5,
+        "High": 567.85,
+        "Low": 567.45,
+        "Close": 567.8,
+        "Volume": 65410
+    },
+    {
+        "Date": 1700197920000,
+        "Open": 567.75,
+        "High": 567.9,
+        "Low": 567.55,
+        "Close": 567.85,
+        "Volume": 66697
+    },
+    {
+        "Date": 1700197980000,
+        "Open": 567.85,
+        "High": 567.95,
+        "Low": 567.65,
+        "Close": 567.9,
+        "Volume": 56746
+    },
+    {
+        "Date": 1700198040000,
+        "Open": 567.85,
+        "High": 568.45,
+        "Low": 567.75,
+        "Close": 568.15,
+        "Volume": 110608
+    },
+    {
+        "Date": 1700198100000,
+        "Open": 568.4,
+        "High": 568.4,
+        "Low": 568,
+        "Close": 568.2,
+        "Volume": 35274
+    },
+    {
+        "Date": 1700198160000,
+        "Open": 568.2,
+        "High": 568.2,
+        "Low": 567.9,
+        "Close": 567.95,
+        "Volume": 74834
+    },
+    {
+        "Date": 1700198220000,
+        "Open": 567.95,
+        "High": 568,
+        "Low": 567.9,
+        "Close": 567.9,
+        "Volume": 31919
+    },
+    {
+        "Date": 1700198280000,
+        "Open": 567.9,
+        "High": 568.05,
+        "Low": 567.8,
+        "Close": 567.9,
+        "Volume": 40437
+    },
+    {
+        "Date": 1700198340000,
+        "Open": 567.85,
+        "High": 567.95,
+        "Low": 567.5,
+        "Close": 567.65,
+        "Volume": 41710
+    },
+    {
+        "Date": 1700198400000,
+        "Open": 567.6,
+        "High": 567.8,
+        "Low": 567.2,
+        "Close": 567.3,
+        "Volume": 55852
+    },
+    {
+        "Date": 1700198460000,
+        "Open": 567.4,
+        "High": 567.6,
+        "Low": 567.3,
+        "Close": 567.4,
+        "Volume": 28556
+    },
+    {
+        "Date": 1700198520000,
+        "Open": 567.35,
+        "High": 567.5,
+        "Low": 567.3,
+        "Close": 567.4,
+        "Volume": 23853
+    },
+    {
+        "Date": 1700198580000,
+        "Open": 567.35,
+        "High": 567.65,
+        "Low": 567.3,
+        "Close": 567.5,
+        "Volume": 32277
+    },
+    {
+        "Date": 1700198640000,
+        "Open": 567.45,
+        "High": 567.65,
+        "Low": 567.35,
+        "Close": 567.6,
+        "Volume": 29210
+    },
+    {
+        "Date": 1700198700000,
+        "Open": 567.55,
+        "High": 567.85,
+        "Low": 567.5,
+        "Close": 567.75,
+        "Volume": 29775
+    },
+    {
+        "Date": 1700198760000,
+        "Open": 567.75,
+        "High": 567.75,
+        "Low": 567.4,
+        "Close": 567.75,
+        "Volume": 52802
+    },
+    {
+        "Date": 1700198820000,
+        "Open": 567.5,
+        "High": 567.75,
+        "Low": 567.4,
+        "Close": 567.4,
+        "Volume": 38372
+    },
+    {
+        "Date": 1700198880000,
+        "Open": 567.3,
+        "High": 567.7,
+        "Low": 567.3,
+        "Close": 567.6,
+        "Volume": 28678
+    },
+    {
+        "Date": 1700198940000,
+        "Open": 567.55,
+        "High": 567.65,
+        "Low": 567.3,
+        "Close": 567.3,
+        "Volume": 28302
+    },
+    {
+        "Date": 1700199000000,
+        "Open": 567.4,
+        "High": 567.55,
+        "Low": 567.1,
+        "Close": 567.3,
+        "Volume": 33593
+    },
+    {
+        "Date": 1700199060000,
+        "Open": 567.3,
+        "High": 567.45,
+        "Low": 567.15,
+        "Close": 567.3,
+        "Volume": 21579
+    },
+    {
+        "Date": 1700199120000,
+        "Open": 567.3,
+        "High": 567.45,
+        "Low": 567.2,
+        "Close": 567.3,
+        "Volume": 25106
+    },
+    {
+        "Date": 1700199180000,
+        "Open": 567.3,
+        "High": 567.5,
+        "Low": 566.8,
+        "Close": 567,
+        "Volume": 128164
+    },
+    {
+        "Date": 1700199240000,
+        "Open": 566.95,
+        "High": 567,
+        "Low": 566.55,
+        "Close": 566.7,
+        "Volume": 34576
+    },
+    {
+        "Date": 1700199300000,
+        "Open": 566.65,
+        "High": 567.05,
+        "Low": 566.55,
+        "Close": 566.9,
+        "Volume": 35593
+    },
+    {
+        "Date": 1700199360000,
+        "Open": 566.85,
+        "High": 567.05,
+        "Low": 566.7,
+        "Close": 566.75,
+        "Volume": 37430
+    },
+    {
+        "Date": 1700199420000,
+        "Open": 566.7,
+        "High": 566.9,
+        "Low": 566.55,
+        "Close": 566.8,
+        "Volume": 37374
+    },
+    {
+        "Date": 1700199480000,
+        "Open": 566.7,
+        "High": 566.95,
+        "Low": 566.7,
+        "Close": 566.85,
+        "Volume": 16829
+    },
+    {
+        "Date": 1700199540000,
+        "Open": 566.8,
+        "High": 566.95,
+        "Low": 566.75,
+        "Close": 566.9,
+        "Volume": 22955
+    },
+    {
+        "Date": 1700199600000,
+        "Open": 566.8,
+        "High": 566.9,
+        "Low": 566.7,
+        "Close": 566.9,
+        "Volume": 28684
+    },
+    {
+        "Date": 1700199660000,
+        "Open": 566.9,
+        "High": 567,
+        "Low": 566.7,
+        "Close": 566.9,
+        "Volume": 62243
+    },
+    {
+        "Date": 1700199720000,
+        "Open": 566.85,
+        "High": 567,
+        "Low": 566.7,
+        "Close": 566.8,
+        "Volume": 31257
+    },
+    {
+        "Date": 1700199780000,
+        "Open": 566.75,
+        "High": 566.95,
+        "Low": 566.5,
+        "Close": 566.75,
+        "Volume": 51786
+    },
+    {
+        "Date": 1700199840000,
+        "Open": 566.7,
+        "High": 566.8,
+        "Low": 566.5,
+        "Close": 566.5,
+        "Volume": 29221
+    },
+    {
+        "Date": 1700199900000,
+        "Open": 566.5,
+        "High": 566.5,
+        "Low": 566,
+        "Close": 566.15,
+        "Volume": 162407
+    },
+    {
+        "Date": 1700199960000,
+        "Open": 566.1,
+        "High": 566.65,
+        "Low": 566.05,
+        "Close": 566.4,
+        "Volume": 37420
+    },
+    {
+        "Date": 1700200020000,
+        "Open": 566.3,
+        "High": 566.75,
+        "Low": 566.3,
+        "Close": 566.7,
+        "Volume": 37884
+    },
+    {
+        "Date": 1700200080000,
+        "Open": 566.55,
+        "High": 566.9,
+        "Low": 566.55,
+        "Close": 566.65,
+        "Volume": 26557
+    },
+    {
+        "Date": 1700200140000,
+        "Open": 566.6,
+        "High": 566.65,
+        "Low": 566.45,
+        "Close": 566.55,
+        "Volume": 27539
+    },
+    {
+        "Date": 1700200200000,
+        "Open": 566.45,
+        "High": 566.7,
+        "Low": 566.4,
+        "Close": 566.6,
+        "Volume": 39482
+    },
+    {
+        "Date": 1700200260000,
+        "Open": 566.55,
+        "High": 568.75,
+        "Low": 566.4,
+        "Close": 568.05,
+        "Volume": 825624
+    },
+    {
+        "Date": 1700200320000,
+        "Open": 568.1,
+        "High": 568.1,
+        "Low": 567.5,
+        "Close": 567.6,
+        "Volume": 57600
+    },
+    {
+        "Date": 1700200380000,
+        "Open": 567.6,
+        "High": 568.05,
+        "Low": 567.6,
+        "Close": 567.75,
+        "Volume": 61683
+    },
+    {
+        "Date": 1700200440000,
+        "Open": 567.75,
+        "High": 568.15,
+        "Low": 567.7,
+        "Close": 568.15,
+        "Volume": 67580
+    },
+    {
+        "Date": 1700200500000,
+        "Open": 568.15,
+        "High": 568.2,
+        "Low": 567.65,
+        "Close": 567.65,
+        "Volume": 53236
+    },
+    {
+        "Date": 1700200560000,
+        "Open": 567.65,
+        "High": 568,
+        "Low": 567.25,
+        "Close": 567.3,
+        "Volume": 118325
+    },
+    {
+        "Date": 1700200620000,
+        "Open": 567.3,
+        "High": 567.55,
+        "Low": 567.25,
+        "Close": 567.3,
+        "Volume": 73905
+    },
+    {
+        "Date": 1700200680000,
+        "Open": 567.3,
+        "High": 567.45,
+        "Low": 567.3,
+        "Close": 567.35,
+        "Volume": 23606
+    },
+    {
+        "Date": 1700200740000,
+        "Open": 567.3,
+        "High": 567.35,
+        "Low": 567,
+        "Close": 567.05,
+        "Volume": 42937
+    },
+    {
+        "Date": 1700200800000,
+        "Open": 567.1,
+        "High": 567.15,
+        "Low": 567,
+        "Close": 567,
+        "Volume": 32735
+    },
+    {
+        "Date": 1700200860000,
+        "Open": 567,
+        "High": 567.1,
+        "Low": 566.9,
+        "Close": 567.05,
+        "Volume": 34530
+    },
+    {
+        "Date": 1700200920000,
+        "Open": 566.95,
+        "High": 567.4,
+        "Low": 566.9,
+        "Close": 567.05,
+        "Volume": 29717
+    },
+    {
+        "Date": 1700200980000,
+        "Open": 567,
+        "High": 567.1,
+        "Low": 567,
+        "Close": 567.1,
+        "Volume": 20613
+    },
+    {
+        "Date": 1700201040000,
+        "Open": 567.05,
+        "High": 567.05,
+        "Low": 567,
+        "Close": 567,
+        "Volume": 39692
+    },
+    {
+        "Date": 1700201100000,
+        "Open": 567,
+        "High": 567.05,
+        "Low": 566.9,
+        "Close": 567,
+        "Volume": 29953
+    },
+    {
+        "Date": 1700201160000,
+        "Open": 566.9,
+        "High": 567.35,
+        "Low": 566.85,
+        "Close": 567.05,
+        "Volume": 40029
+    },
+    {
+        "Date": 1700201220000,
+        "Open": 567.05,
+        "High": 567.3,
+        "Low": 566.9,
+        "Close": 567,
+        "Volume": 50266
+    },
+    {
+        "Date": 1700201280000,
+        "Open": 566.95,
+        "High": 567.5,
+        "Low": 566.9,
+        "Close": 567.4,
+        "Volume": 41908
+    },
+    {
+        "Date": 1700201340000,
+        "Open": 567.3,
+        "High": 567.35,
+        "Low": 567.05,
+        "Close": 567.3,
+        "Volume": 27151
+    },
+    {
+        "Date": 1700201400000,
+        "Open": 567.2,
+        "High": 567.4,
+        "Low": 567.1,
+        "Close": 567.1,
+        "Volume": 72683
+    },
+    {
+        "Date": 1700201460000,
+        "Open": 567.1,
+        "High": 567.7,
+        "Low": 567,
+        "Close": 567.65,
+        "Volume": 51807
+    },
+    {
+        "Date": 1700201520000,
+        "Open": 567.65,
+        "High": 567.95,
+        "Low": 567.35,
+        "Close": 567.65,
+        "Volume": 62120
+    },
+    {
+        "Date": 1700201580000,
+        "Open": 567.6,
+        "High": 568,
+        "Low": 567.25,
+        "Close": 567.3,
+        "Volume": 84808
+    },
+    {
+        "Date": 1700201640000,
+        "Open": 567.3,
+        "High": 567.5,
+        "Low": 567.05,
+        "Close": 567.15,
+        "Volume": 45636
+    },
+    {
+        "Date": 1700201700000,
+        "Open": 567.15,
+        "High": 567.55,
+        "Low": 567.05,
+        "Close": 567.2,
+        "Volume": 44251
+    },
+    {
+        "Date": 1700201760000,
+        "Open": 567.15,
+        "High": 567.45,
+        "Low": 567.1,
+        "Close": 567.2,
+        "Volume": 25882
+    },
+    {
+        "Date": 1700201820000,
+        "Open": 567.15,
+        "High": 567.3,
+        "Low": 567.05,
+        "Close": 567.15,
+        "Volume": 35176
+    },
+    {
+        "Date": 1700201880000,
+        "Open": 567.15,
+        "High": 567.25,
+        "Low": 567.05,
+        "Close": 567.05,
+        "Volume": 27158
+    },
+    {
+        "Date": 1700201940000,
+        "Open": 567.05,
+        "High": 567.2,
+        "Low": 567,
+        "Close": 567,
+        "Volume": 37451
+    },
+    {
+        "Date": 1700202000000,
+        "Open": 567,
+        "High": 567.1,
+        "Low": 567,
+        "Close": 567,
+        "Volume": 38968
+    },
+    {
+        "Date": 1700202060000,
+        "Open": 567,
+        "High": 567.05,
+        "Low": 567,
+        "Close": 567.05,
+        "Volume": 37921
+    },
+    {
+        "Date": 1700202120000,
+        "Open": 567,
+        "High": 567.05,
+        "Low": 566.85,
+        "Close": 566.9,
+        "Volume": 37760
+    },
+    {
+        "Date": 1700202180000,
+        "Open": 566.85,
+        "High": 566.95,
+        "Low": 566.7,
+        "Close": 566.7,
+        "Volume": 34708
+    },
+    {
+        "Date": 1700202240000,
+        "Open": 566.7,
+        "High": 566.75,
+        "Low": 566.5,
+        "Close": 566.65,
+        "Volume": 45557
+    },
+    {
+        "Date": 1700202300000,
+        "Open": 566.65,
+        "High": 566.75,
+        "Low": 566.55,
+        "Close": 566.65,
+        "Volume": 50884
+    },
+    {
+        "Date": 1700202360000,
+        "Open": 566.65,
+        "High": 566.65,
+        "Low": 566.5,
+        "Close": 566.55,
+        "Volume": 41168
+    },
+    {
+        "Date": 1700202420000,
+        "Open": 566.55,
+        "High": 567.1,
+        "Low": 566.5,
+        "Close": 566.5,
+        "Volume": 89355
+    },
+    {
+        "Date": 1700202480000,
+        "Open": 567,
+        "High": 567.05,
+        "Low": 566.5,
+        "Close": 566.55,
+        "Volume": 85931
+    },
+    {
+        "Date": 1700202540000,
+        "Open": 566.6,
+        "High": 566.65,
+        "Low": 566.15,
+        "Close": 566.25,
+        "Volume": 76348
+    },
+    {
+        "Date": 1700202600000,
+        "Open": 566.25,
+        "High": 566.65,
+        "Low": 566.1,
+        "Close": 566.25,
+        "Volume": 81450
+    },
+    {
+        "Date": 1700202660000,
+        "Open": 566.35,
+        "High": 566.45,
+        "Low": 566.2,
+        "Close": 566.35,
+        "Volume": 41318
+    },
+    {
+        "Date": 1700202720000,
+        "Open": 566.3,
+        "High": 566.4,
+        "Low": 566.1,
+        "Close": 566.15,
+        "Volume": 56404
+    },
+    {
+        "Date": 1700202780000,
+        "Open": 566.1,
+        "High": 566.4,
+        "Low": 566.1,
+        "Close": 566.35,
+        "Volume": 52940
+    },
+    {
+        "Date": 1700202840000,
+        "Open": 566.3,
+        "High": 566.4,
+        "Low": 566.1,
+        "Close": 566.2,
+        "Volume": 46354
+    },
+    {
+        "Date": 1700202900000,
+        "Open": 566.2,
+        "High": 566.2,
+        "Low": 566.1,
+        "Close": 566.15,
+        "Volume": 38871
+    },
+    {
+        "Date": 1700202960000,
+        "Open": 566.1,
+        "High": 566.2,
+        "Low": 566.1,
+        "Close": 566.1,
+        "Volume": 40867
+    },
+    {
+        "Date": 1700203020000,
+        "Open": 566.1,
+        "High": 566.3,
+        "Low": 566.1,
+        "Close": 566.25,
+        "Volume": 51637
+    },
+    {
+        "Date": 1700203080000,
+        "Open": 566.25,
+        "High": 566.3,
+        "Low": 566.1,
+        "Close": 566.2,
+        "Volume": 43803
+    },
+    {
+        "Date": 1700203140000,
+        "Open": 566.1,
+        "High": 566.25,
+        "Low": 566.1,
+        "Close": 566.15,
+        "Volume": 62049
+    },
+    {
+        "Date": 1700203200000,
+        "Open": 566.1,
+        "High": 566.65,
+        "Low": 566.1,
+        "Close": 566.3,
+        "Volume": 74075
+    },
+    {
+        "Date": 1700203260000,
+        "Open": 566.25,
+        "High": 566.3,
+        "Low": 566,
+        "Close": 566.05,
+        "Volume": 154184
+    },
+    {
+        "Date": 1700203320000,
+        "Open": 566,
+        "High": 566.15,
+        "Low": 566,
+        "Close": 566.05,
+        "Volume": 96594
+    },
+    {
+        "Date": 1700203380000,
+        "Open": 566,
+        "High": 566.15,
+        "Low": 566,
+        "Close": 566.1,
+        "Volume": 50436
+    },
+    {
+        "Date": 1700203440000,
+        "Open": 566.1,
+        "High": 566.15,
+        "Low": 566,
+        "Close": 566,
+        "Volume": 46736
+    },
+    {
+        "Date": 1700203500000,
+        "Open": 566,
+        "High": 566.1,
+        "Low": 565.8,
+        "Close": 565.8,
+        "Volume": 65608
+    },
+    {
+        "Date": 1700203560000,
+        "Open": 565.85,
+        "High": 565.95,
+        "Low": 565.75,
+        "Close": 565.75,
+        "Volume": 40806
+    },
+    {
+        "Date": 1700203620000,
+        "Open": 565.75,
+        "High": 566,
+        "Low": 565.7,
+        "Close": 565.8,
+        "Volume": 60334
+    },
+    {
+        "Date": 1700203680000,
+        "Open": 565.8,
+        "High": 566.1,
+        "Low": 565.8,
+        "Close": 565.95,
+        "Volume": 28687
+    },
+    {
+        "Date": 1700203740000,
+        "Open": 565.9,
+        "High": 566,
+        "Low": 565.8,
+        "Close": 565.9,
+        "Volume": 38079
+    },
+    {
+        "Date": 1700203800000,
+        "Open": 565.9,
+        "High": 565.95,
+        "Low": 565.8,
+        "Close": 565.85,
+        "Volume": 32290
+    },
+    {
+        "Date": 1700203860000,
+        "Open": 565.85,
+        "High": 565.85,
+        "Low": 565.55,
+        "Close": 565.6,
+        "Volume": 44084
+    },
+    {
+        "Date": 1700203920000,
+        "Open": 565.55,
+        "High": 565.7,
+        "Low": 565.5,
+        "Close": 565.5,
+        "Volume": 58006
+    },
+    {
+        "Date": 1700203980000,
+        "Open": 565.55,
+        "High": 565.65,
+        "Low": 565.5,
+        "Close": 565.55,
+        "Volume": 47916
+    },
+    {
+        "Date": 1700204040000,
+        "Open": 565.55,
+        "High": 565.65,
+        "Low": 565.3,
+        "Close": 565.3,
+        "Volume": 51336
+    },
+    {
+        "Date": 1700204100000,
+        "Open": 565.35,
+        "High": 565.45,
+        "Low": 565.2,
+        "Close": 565.25,
+        "Volume": 94710
+    },
+    {
+        "Date": 1700204160000,
+        "Open": 565.25,
+        "High": 565.35,
+        "Low": 565.05,
+        "Close": 565.1,
+        "Volume": 100062
+    },
+    {
+        "Date": 1700204220000,
+        "Open": 565.1,
+        "High": 565.6,
+        "Low": 565.05,
+        "Close": 565.45,
+        "Volume": 89507
+    },
+    {
+        "Date": 1700204280000,
+        "Open": 565.25,
+        "High": 565.55,
+        "Low": 565.2,
+        "Close": 565.45,
+        "Volume": 58146
+    },
+    {
+        "Date": 1700204340000,
+        "Open": 565.3,
+        "High": 565.5,
+        "Low": 565.25,
+        "Close": 565.4,
+        "Volume": 67749
+    },
+    {
+        "Date": 1700204400000,
+        "Open": 565.45,
+        "High": 565.55,
+        "Low": 565.35,
+        "Close": 565.4,
+        "Volume": 86695
+    },
+    {
+        "Date": 1700204460000,
+        "Open": 565.3,
+        "High": 565.45,
+        "Low": 565.3,
+        "Close": 565.35,
+        "Volume": 76197
+    },
+    {
+        "Date": 1700204520000,
+        "Open": 565.4,
+        "High": 565.65,
+        "Low": 565.3,
+        "Close": 565.4,
+        "Volume": 79449
+    },
+    {
+        "Date": 1700204580000,
+        "Open": 565.35,
+        "High": 565.45,
+        "Low": 565.2,
+        "Close": 565.3,
+        "Volume": 100380
+    },
+    {
+        "Date": 1700204640000,
+        "Open": 565.3,
+        "High": 565.3,
+        "Low": 565.1,
+        "Close": 565.15,
+        "Volume": 64568
+    },
+    {
+        "Date": 1700204700000,
+        "Open": 565.15,
+        "High": 565.3,
+        "Low": 565.05,
+        "Close": 565.2,
+        "Volume": 68714
+    },
+    {
+        "Date": 1700204760000,
+        "Open": 565.2,
+        "High": 565.55,
+        "Low": 565.1,
+        "Close": 565.3,
+        "Volume": 64405
+    },
+    {
+        "Date": 1700204820000,
+        "Open": 565.3,
+        "High": 565.5,
+        "Low": 565.2,
+        "Close": 565.45,
+        "Volume": 59518
+    },
+    {
+        "Date": 1700204880000,
+        "Open": 565.6,
+        "High": 565.6,
+        "Low": 565.35,
+        "Close": 565.4,
+        "Volume": 69720
+    },
+    {
+        "Date": 1700204940000,
+        "Open": 565.4,
+        "High": 565.5,
+        "Low": 565.3,
+        "Close": 565.4,
+        "Volume": 71701
+    },
+    {
+        "Date": 1700205000000,
+        "Open": 565.45,
+        "High": 565.45,
+        "Low": 565.25,
+        "Close": 565.35,
+        "Volume": 58835
+    },
+    {
+        "Date": 1700205060000,
+        "Open": 565.3,
+        "High": 565.35,
+        "Low": 565.15,
+        "Close": 565.35,
+        "Volume": 69491
+    },
+    {
+        "Date": 1700205120000,
+        "Open": 565.25,
+        "High": 565.7,
+        "Low": 565.15,
+        "Close": 565.4,
+        "Volume": 112145
+    },
+    {
+        "Date": 1700205180000,
+        "Open": 565.4,
+        "High": 565.7,
+        "Low": 565.3,
+        "Close": 565.45,
+        "Volume": 93847
+    },
+    {
+        "Date": 1700205240000,
+        "Open": 565.5,
+        "High": 565.7,
+        "Low": 565.3,
+        "Close": 565.4,
+        "Volume": 74373
+    },
+    {
+        "Date": 1700205300000,
+        "Open": 565.4,
+        "High": 565.8,
+        "Low": 565.4,
+        "Close": 565.4,
+        "Volume": 132401
+    },
+    {
+        "Date": 1700205360000,
+        "Open": 565.5,
+        "High": 565.5,
+        "Low": 565.3,
+        "Close": 565.35,
+        "Volume": 61085
+    },
+    {
+        "Date": 1700205420000,
+        "Open": 565.4,
+        "High": 565.4,
+        "Low": 565.25,
+        "Close": 565.3,
+        "Volume": 64925
+    },
+    {
+        "Date": 1700205480000,
+        "Open": 565.25,
+        "High": 565.4,
+        "Low": 565.1,
+        "Close": 565.2,
+        "Volume": 61091
+    },
+    {
+        "Date": 1700205540000,
+        "Open": 565.15,
+        "High": 565.2,
+        "Low": 565.05,
+        "Close": 565.1,
+        "Volume": 64959
+    },
+    {
+        "Date": 1700205600000,
+        "Open": 565.05,
+        "High": 565.15,
+        "Low": 565,
+        "Close": 565.05,
+        "Volume": 89776
+    },
+    {
+        "Date": 1700205660000,
+        "Open": 565.05,
+        "High": 565.15,
+        "Low": 565,
+        "Close": 565.15,
+        "Volume": 61661
+    },
+    {
+        "Date": 1700205720000,
+        "Open": 565.15,
+        "High": 565.2,
+        "Low": 565,
+        "Close": 565.1,
+        "Volume": 62124
+    },
+    {
+        "Date": 1700205780000,
+        "Open": 565.1,
+        "High": 565.3,
+        "Low": 565.05,
+        "Close": 565.1,
+        "Volume": 46238
+    },
+    {
+        "Date": 1700205840000,
+        "Open": 565.05,
+        "High": 565.2,
+        "Low": 564.6,
+        "Close": 564.8,
+        "Volume": 630834
+    },
+    {
+        "Date": 1700205900000,
+        "Open": 564.7,
+        "High": 564.75,
+        "Low": 564.6,
+        "Close": 564.75,
+        "Volume": 66700
+    },
+    {
+        "Date": 1700205960000,
+        "Open": 564.7,
+        "High": 564.75,
+        "Low": 564.5,
+        "Close": 564.5,
+        "Volume": 60707
+    },
+    {
+        "Date": 1700206020000,
+        "Open": 564.55,
+        "High": 564.8,
+        "Low": 564.5,
+        "Close": 564.7,
+        "Volume": 63443
+    },
+    {
+        "Date": 1700206080000,
+        "Open": 564.65,
+        "High": 564.95,
+        "Low": 564.65,
+        "Close": 564.7,
+        "Volume": 32483
+    },
+    {
+        "Date": 1700206140000,
+        "Open": 564.7,
+        "High": 564.8,
+        "Low": 564.65,
+        "Close": 564.7,
+        "Volume": 39853
+    },
+    {
+        "Date": 1700206200000,
+        "Open": 564.65,
+        "High": 564.8,
+        "Low": 564.6,
+        "Close": 564.7,
+        "Volume": 53543
+    },
+    {
+        "Date": 1700206260000,
+        "Open": 564.65,
+        "High": 564.9,
+        "Low": 564.6,
+        "Close": 564.7,
+        "Volume": 64462
+    },
+    {
+        "Date": 1700206320000,
+        "Open": 564.8,
+        "High": 564.85,
+        "Low": 564.7,
+        "Close": 564.7,
+        "Volume": 46624
+    },
+    {
+        "Date": 1700206380000,
+        "Open": 564.8,
+        "High": 564.85,
+        "Low": 564.6,
+        "Close": 564.7,
+        "Volume": 52338
+    },
+    {
+        "Date": 1700206440000,
+        "Open": 564.65,
+        "High": 564.8,
+        "Low": 564.6,
+        "Close": 564.75,
+        "Volume": 51400
+    },
+    {
+        "Date": 1700206500000,
+        "Open": 564.7,
+        "High": 564.75,
+        "Low": 564.65,
+        "Close": 564.7,
+        "Volume": 66461
+    },
+    {
+        "Date": 1700206560000,
+        "Open": 564.75,
+        "High": 564.8,
+        "Low": 564.65,
+        "Close": 564.75,
+        "Volume": 71605
+    },
+    {
+        "Date": 1700206620000,
+        "Open": 564.7,
+        "High": 564.8,
+        "Low": 564.6,
+        "Close": 564.7,
+        "Volume": 74548
+    },
+    {
+        "Date": 1700206680000,
+        "Open": 564.75,
+        "High": 564.85,
+        "Low": 564.6,
+        "Close": 564.8,
+        "Volume": 99175
+    },
+    {
+        "Date": 1700206740000,
+        "Open": 564.8,
+        "High": 565,
+        "Low": 564.75,
+        "Close": 564.8,
+        "Volume": 74433
+    },
+    {
+        "Date": 1700206800000,
+        "Open": 564.8,
+        "High": 564.8,
+        "Low": 564.7,
+        "Close": 564.7,
+        "Volume": 54916
+    },
+    {
+        "Date": 1700206860000,
+        "Open": 564.7,
+        "High": 564.8,
+        "Low": 564.65,
+        "Close": 564.75,
+        "Volume": 62629
+    },
+    {
+        "Date": 1700206920000,
+        "Open": 564.75,
+        "High": 564.8,
+        "Low": 564.6,
+        "Close": 564.65,
+        "Volume": 73936
+    },
+    {
+        "Date": 1700206980000,
+        "Open": 564.7,
+        "High": 564.7,
+        "Low": 564.6,
+        "Close": 564.65,
+        "Volume": 53062
+    },
+    {
+        "Date": 1700207040000,
+        "Open": 564.7,
+        "High": 564.7,
+        "Low": 564.5,
+        "Close": 564.55,
+        "Volume": 52872
+    },
+    {
+        "Date": 1700207100000,
+        "Open": 564.55,
+        "High": 564.7,
+        "Low": 564.5,
+        "Close": 564.7,
+        "Volume": 76135
+    },
+    {
+        "Date": 1700207160000,
+        "Open": 564.7,
+        "High": 564.7,
+        "Low": 564.5,
+        "Close": 564.6,
+        "Volume": 59714
+    },
+    {
+        "Date": 1700207220000,
+        "Open": 564.6,
+        "High": 564.6,
+        "Low": 564.45,
+        "Close": 564.45,
+        "Volume": 108756
+    },
+    {
+        "Date": 1700207280000,
+        "Open": 564.5,
+        "High": 564.55,
+        "Low": 564.25,
+        "Close": 564.35,
+        "Volume": 73347
+    },
+    {
+        "Date": 1700207340000,
+        "Open": 564.3,
+        "High": 564.4,
+        "Low": 564.2,
+        "Close": 564.3,
+        "Volume": 77413
+    },
+    {
+        "Date": 1700207400000,
+        "Open": 564.35,
+        "High": 564.4,
+        "Low": 564.2,
+        "Close": 564.35,
+        "Volume": 63205
+    },
+    {
+        "Date": 1700207460000,
+        "Open": 564.35,
+        "High": 564.35,
+        "Low": 564.2,
+        "Close": 564.3,
+        "Volume": 67751
+    },
+    {
+        "Date": 1700207520000,
+        "Open": 564.35,
+        "High": 564.55,
+        "Low": 564.3,
+        "Close": 564.45,
+        "Volume": 73971
+    },
+    {
+        "Date": 1700207580000,
+        "Open": 564.4,
+        "High": 564.5,
+        "Low": 564.35,
+        "Close": 564.35,
+        "Volume": 48499
+    },
+    {
+        "Date": 1700207640000,
+        "Open": 564.45,
+        "High": 564.5,
+        "Low": 564.35,
+        "Close": 564.45,
+        "Volume": 49401
+    },
+    {
+        "Date": 1700207700000,
+        "Open": 564.45,
+        "High": 564.5,
+        "Low": 564.3,
+        "Close": 564.35,
+        "Volume": 56056
+    },
+    {
+        "Date": 1700207760000,
+        "Open": 564.35,
+        "High": 564.35,
+        "Low": 564.1,
+        "Close": 564.25,
+        "Volume": 64289
+    },
+    {
+        "Date": 1700207820000,
+        "Open": 564.15,
+        "High": 564.35,
+        "Low": 564.1,
+        "Close": 564.3,
+        "Volume": 55242
+    },
+    {
+        "Date": 1700207880000,
+        "Open": 564.3,
+        "High": 564.35,
+        "Low": 564.05,
+        "Close": 564.2,
+        "Volume": 75125
+    },
+    {
+        "Date": 1700207940000,
+        "Open": 564.2,
+        "High": 564.2,
+        "Low": 564,
+        "Close": 564.1,
+        "Volume": 92535
+    },
+    {
+        "Date": 1700208000000,
+        "Open": 564.05,
+        "High": 564.2,
+        "Low": 564,
+        "Close": 564.05,
+        "Volume": 68637
+    },
+    {
+        "Date": 1700208060000,
+        "Open": 564.05,
+        "High": 564.45,
+        "Low": 564,
+        "Close": 564.25,
+        "Volume": 86231
+    },
+    {
+        "Date": 1700208120000,
+        "Open": 564.3,
+        "High": 564.45,
+        "Low": 564.1,
+        "Close": 564.25,
+        "Volume": 46631
+    },
+    {
+        "Date": 1700208180000,
+        "Open": 564.25,
+        "High": 564.3,
+        "Low": 564.1,
+        "Close": 564.15,
+        "Volume": 48779
+    },
+    {
+        "Date": 1700208240000,
+        "Open": 564.2,
+        "High": 564.4,
+        "Low": 564.1,
+        "Close": 564.15,
+        "Volume": 55468
+    },
+    {
+        "Date": 1700208300000,
+        "Open": 564.15,
+        "High": 564.35,
+        "Low": 564.05,
+        "Close": 564.05,
+        "Volume": 57865
+    },
+    {
+        "Date": 1700208360000,
+        "Open": 564.1,
+        "High": 564.25,
+        "Low": 564,
+        "Close": 564.1,
+        "Volume": 45443
+    },
+    {
+        "Date": 1700208420000,
+        "Open": 564,
+        "High": 564.2,
+        "Low": 564,
+        "Close": 564.05,
+        "Volume": 65913
+    },
+    {
+        "Date": 1700208480000,
+        "Open": 564.05,
+        "High": 564.3,
+        "Low": 564,
+        "Close": 564.2,
+        "Volume": 63152
+    },
+    {
+        "Date": 1700208540000,
+        "Open": 564.15,
+        "High": 564.4,
+        "Low": 564.1,
+        "Close": 564.15,
+        "Volume": 55766
+    },
+    {
+        "Date": 1700208600000,
+        "Open": 564.15,
+        "High": 564.35,
+        "Low": 564.1,
+        "Close": 564.3,
+        "Volume": 53752
+    },
+    {
+        "Date": 1700208660000,
+        "Open": 564.35,
+        "High": 564.35,
+        "Low": 564,
+        "Close": 564,
+        "Volume": 142009
+    },
+    {
+        "Date": 1700208720000,
+        "Open": 564,
+        "High": 564.05,
+        "Low": 563.9,
+        "Close": 563.95,
+        "Volume": 78848
+    },
+    {
+        "Date": 1700208780000,
+        "Open": 564.05,
+        "High": 564.05,
+        "Low": 563.9,
+        "Close": 563.9,
+        "Volume": 44060
+    },
+    {
+        "Date": 1700208840000,
+        "Open": 564,
+        "High": 564.1,
+        "Low": 563.8,
+        "Close": 564.05,
+        "Volume": 80714
+    },
+    {
+        "Date": 1700208900000,
+        "Open": 564,
+        "High": 564.2,
+        "Low": 564,
+        "Close": 564.05,
+        "Volume": 60402
+    },
+    {
+        "Date": 1700208960000,
+        "Open": 564.05,
+        "High": 564.5,
+        "Low": 564,
+        "Close": 564.3,
+        "Volume": 52196
+    },
+    {
+        "Date": 1700209020000,
+        "Open": 564.35,
+        "High": 564.45,
+        "Low": 564.2,
+        "Close": 564.2,
+        "Volume": 53603
+    },
+    {
+        "Date": 1700209080000,
+        "Open": 564.25,
+        "High": 564.35,
+        "Low": 564,
+        "Close": 564,
+        "Volume": 68658
+    },
+    {
+        "Date": 1700209140000,
+        "Open": 564.05,
+        "High": 564.35,
+        "Low": 564,
+        "Close": 564.25,
+        "Volume": 62413
+    },
+    {
+        "Date": 1700209200000,
+        "Open": 564.15,
+        "High": 564.2,
+        "Low": 563.9,
+        "Close": 564.05,
+        "Volume": 54073
+    },
+    {
+        "Date": 1700209260000,
+        "Open": 564.05,
+        "High": 564.3,
+        "Low": 563.8,
+        "Close": 563.85,
+        "Volume": 51953
+    },
+    {
+        "Date": 1700209320000,
+        "Open": 563.85,
+        "High": 564,
+        "Low": 563.75,
+        "Close": 563.75,
+        "Volume": 71864
+    },
+    {
+        "Date": 1700209380000,
+        "Open": 563.8,
+        "High": 563.8,
+        "Low": 563.5,
+        "Close": 563.65,
+        "Volume": 90490
+    },
+    {
+        "Date": 1700209440000,
+        "Open": 563.65,
+        "High": 563.75,
+        "Low": 563.5,
+        "Close": 563.55,
+        "Volume": 47797
+    },
+    {
+        "Date": 1700209500000,
+        "Open": 563.55,
+        "High": 563.65,
+        "Low": 563.5,
+        "Close": 563.55,
+        "Volume": 66183
+    },
+    {
+        "Date": 1700209560000,
+        "Open": 563.55,
+        "High": 563.65,
+        "Low": 563.5,
+        "Close": 563.55,
+        "Volume": 55501
+    },
+    {
+        "Date": 1700209620000,
+        "Open": 563.5,
+        "High": 563.6,
+        "Low": 563.45,
+        "Close": 563.5,
+        "Volume": 58091
+    },
+    {
+        "Date": 1700209680000,
+        "Open": 563.45,
+        "High": 563.55,
+        "Low": 563.25,
+        "Close": 563.3,
+        "Volume": 66930
+    },
+    {
+        "Date": 1700209740000,
+        "Open": 563.3,
+        "High": 563.4,
+        "Low": 563.1,
+        "Close": 563.2,
+        "Volume": 113624
+    },
+    {
+        "Date": 1700209800000,
+        "Open": 563.15,
+        "High": 563.75,
+        "Low": 563.15,
+        "Close": 563.5,
+        "Volume": 95319
+    },
+    {
+        "Date": 1700209860000,
+        "Open": 563.7,
+        "High": 563.7,
+        "Low": 563.35,
+        "Close": 563.55,
+        "Volume": 56957
+    },
+    {
+        "Date": 1700209920000,
+        "Open": 563.55,
+        "High": 563.85,
+        "Low": 563.45,
+        "Close": 563.75,
+        "Volume": 87961
+    },
+    {
+        "Date": 1700209980000,
+        "Open": 563.8,
+        "High": 564.15,
+        "Low": 563.7,
+        "Close": 563.85,
+        "Volume": 85686
+    },
+    {
+        "Date": 1700210040000,
+        "Open": 563.85,
+        "High": 564,
+        "Low": 563.8,
+        "Close": 563.85,
+        "Volume": 67093
+    },
+    {
+        "Date": 1700210100000,
+        "Open": 563.85,
+        "High": 563.95,
+        "Low": 563.7,
+        "Close": 563.8,
+        "Volume": 55339
+    },
+    {
+        "Date": 1700210160000,
+        "Open": 563.8,
+        "High": 564.2,
+        "Low": 563.75,
+        "Close": 563.95,
+        "Volume": 75405
+    },
+    {
+        "Date": 1700210220000,
+        "Open": 563.9,
+        "High": 564.25,
+        "Low": 563.85,
+        "Close": 564.2,
+        "Volume": 83395
+    },
+    {
+        "Date": 1700210280000,
+        "Open": 564.25,
+        "High": 564.25,
+        "Low": 564.05,
+        "Close": 564.25,
+        "Volume": 59332
+    },
+    {
+        "Date": 1700210340000,
+        "Open": 564.25,
+        "High": 564.35,
+        "Low": 564.05,
+        "Close": 564.25,
+        "Volume": 85375
+    },
+    {
+        "Date": 1700210400000,
+        "Open": 564.25,
+        "High": 564.3,
+        "Low": 564.1,
+        "Close": 564.2,
+        "Volume": 63298
+    },
+    {
+        "Date": 1700210460000,
+        "Open": 564.2,
+        "High": 564.5,
+        "Low": 564.15,
+        "Close": 564.45,
+        "Volume": 79754
+    },
+    {
+        "Date": 1700210520000,
+        "Open": 564.4,
+        "High": 564.65,
+        "Low": 564.35,
+        "Close": 564.55,
+        "Volume": 112159
+    },
+    {
+        "Date": 1700210580000,
+        "Open": 564.45,
+        "High": 564.75,
+        "Low": 564.4,
+        "Close": 564.6,
+        "Volume": 80726
+    },
+    {
+        "Date": 1700210640000,
+        "Open": 564.6,
+        "High": 564.65,
+        "Low": 564.3,
+        "Close": 564.3,
+        "Volume": 75431
+    },
+    {
+        "Date": 1700210700000,
+        "Open": 564.25,
+        "High": 564.5,
+        "Low": 564.25,
+        "Close": 564.45,
+        "Volume": 88704
+    },
+    {
+        "Date": 1700210760000,
+        "Open": 564.3,
+        "High": 564.45,
+        "Low": 564.1,
+        "Close": 564.15,
+        "Volume": 75105
+    },
+    {
+        "Date": 1700210820000,
+        "Open": 564.25,
+        "High": 564.25,
+        "Low": 564,
+        "Close": 564.15,
+        "Volume": 71620
+    },
+    {
+        "Date": 1700210880000,
+        "Open": 564.15,
+        "High": 564.45,
+        "Low": 564.05,
+        "Close": 564.1,
+        "Volume": 59216
+    },
+    {
+        "Date": 1700210940000,
+        "Open": 564.3,
+        "High": 564.55,
+        "Low": 564.1,
+        "Close": 564.35,
+        "Volume": 74127
+    },
+    {
+        "Date": 1700211000000,
+        "Open": 564.3,
+        "High": 564.4,
+        "Low": 564.2,
+        "Close": 564.2,
+        "Volume": 57052
+    },
+    {
+        "Date": 1700211060000,
+        "Open": 564.2,
+        "High": 564.25,
+        "Low": 564,
+        "Close": 564.05,
+        "Volume": 57428
+    },
+    {
+        "Date": 1700211120000,
+        "Open": 564.05,
+        "High": 564.05,
+        "Low": 563.8,
+        "Close": 563.9,
+        "Volume": 101501
+    },
+    {
+        "Date": 1700211180000,
+        "Open": 563.85,
+        "High": 563.9,
+        "Low": 563.75,
+        "Close": 563.85,
+        "Volume": 53173
+    },
+    {
+        "Date": 1700211240000,
+        "Open": 563.75,
+        "High": 564.15,
+        "Low": 563.75,
+        "Close": 564,
+        "Volume": 61454
+    },
+    {
+        "Date": 1700211300000,
+        "Open": 563.95,
+        "High": 564.1,
+        "Low": 563.8,
+        "Close": 563.95,
+        "Volume": 79002
+    },
+    {
+        "Date": 1700211360000,
+        "Open": 563.9,
+        "High": 564.15,
+        "Low": 563.85,
+        "Close": 564.1,
+        "Volume": 81269
+    },
+    {
+        "Date": 1700211420000,
+        "Open": 564.1,
+        "High": 564.3,
+        "Low": 563.9,
+        "Close": 564.25,
+        "Volume": 51741
+    },
+    {
+        "Date": 1700211480000,
+        "Open": 564.15,
+        "High": 564.3,
+        "Low": 563.85,
+        "Close": 564.05,
+        "Volume": 80496
+    },
+    {
+        "Date": 1700211540000,
+        "Open": 564.05,
+        "High": 564.15,
+        "Low": 563.8,
+        "Close": 563.85,
+        "Volume": 56594
+    },
+    {
+        "Date": 1700211600000,
+        "Open": 563.8,
+        "High": 564,
+        "Low": 563.7,
+        "Close": 563.7,
+        "Volume": 58788
+    },
+    {
+        "Date": 1700211660000,
+        "Open": 563.7,
+        "High": 563.85,
+        "Low": 563.65,
+        "Close": 563.7,
+        "Volume": 62908
+    },
+    {
+        "Date": 1700211720000,
+        "Open": 563.7,
+        "High": 563.75,
+        "Low": 563.5,
+        "Close": 563.6,
+        "Volume": 67386
+    },
+    {
+        "Date": 1700211780000,
+        "Open": 563.55,
+        "High": 563.7,
+        "Low": 563.5,
+        "Close": 563.5,
+        "Volume": 62058
+    },
+    {
+        "Date": 1700211840000,
+        "Open": 563.55,
+        "High": 563.6,
+        "Low": 563.4,
+        "Close": 563.55,
+        "Volume": 79508
+    },
+    {
+        "Date": 1700211900000,
+        "Open": 563.5,
+        "High": 563.9,
+        "Low": 563.4,
+        "Close": 563.65,
+        "Volume": 115085
+    },
+    {
+        "Date": 1700211960000,
+        "Open": 563.65,
+        "High": 563.65,
+        "Low": 563.4,
+        "Close": 563.45,
+        "Volume": 81789
+    },
+    {
+        "Date": 1700212020000,
+        "Open": 563.4,
+        "High": 563.9,
+        "Low": 563.4,
+        "Close": 563.6,
+        "Volume": 95509
+    },
+    {
+        "Date": 1700212080000,
+        "Open": 563.5,
+        "High": 563.7,
+        "Low": 563.4,
+        "Close": 563.6,
+        "Volume": 99279
+    },
+    {
+        "Date": 1700212140000,
+        "Open": 563.55,
+        "High": 563.75,
+        "Low": 563.35,
+        "Close": 563.55,
+        "Volume": 91305
+    },
+    {
+        "Date": 1700212200000,
+        "Open": 563.4,
+        "High": 563.55,
+        "Low": 563.35,
+        "Close": 563.45,
+        "Volume": 70192
+    },
+    {
+        "Date": 1700212260000,
+        "Open": 563.4,
+        "High": 563.5,
+        "Low": 563.3,
+        "Close": 563.45,
+        "Volume": 79163
+    },
+    {
+        "Date": 1700212320000,
+        "Open": 563.4,
+        "High": 563.45,
+        "Low": 563.15,
+        "Close": 563.2,
+        "Volume": 83834
+    },
+    {
+        "Date": 1700212380000,
+        "Open": 563.55,
+        "High": 563.6,
+        "Low": 563.25,
+        "Close": 563.55,
+        "Volume": 91902
+    },
+    {
+        "Date": 1700212440000,
+        "Open": 563.5,
+        "High": 564.1,
+        "Low": 563.35,
+        "Close": 564,
+        "Volume": 149456
+    },
+    {
+        "Date": 1700212500000,
+        "Open": 564.05,
+        "High": 564.1,
+        "Low": 563.6,
+        "Close": 563.85,
+        "Volume": 166689
+    },
+    {
+        "Date": 1700212560000,
+        "Open": 563.85,
+        "High": 564,
+        "Low": 563.5,
+        "Close": 563.5,
+        "Volume": 92043
+    },
+    {
+        "Date": 1700212620000,
+        "Open": 563.5,
+        "High": 563.75,
+        "Low": 563.5,
+        "Close": 563.55,
+        "Volume": 82337
+    },
+    {
+        "Date": 1700212680000,
+        "Open": 563.55,
+        "High": 563.8,
+        "Low": 563.45,
+        "Close": 563.55,
+        "Volume": 65959
+    },
+    {
+        "Date": 1700212740000,
+        "Open": 563.55,
+        "High": 563.7,
+        "Low": 563.3,
+        "Close": 563.6,
+        "Volume": 87068
+    },
+    {
+        "Date": 1700212800000,
+        "Open": 563.45,
+        "High": 563.75,
+        "Low": 563.3,
+        "Close": 563.4,
+        "Volume": 116860
+    },
+    {
+        "Date": 1700212860000,
+        "Open": 563.45,
+        "High": 563.65,
+        "Low": 563.1,
+        "Close": 563.2,
+        "Volume": 109463
+    },
+    {
+        "Date": 1700212920000,
+        "Open": 563.1,
+        "High": 563.4,
+        "Low": 563.05,
+        "Close": 563.35,
+        "Volume": 95887
+    },
+    {
+        "Date": 1700212980000,
+        "Open": 563.3,
+        "High": 563.4,
+        "Low": 563,
+        "Close": 563.1,
+        "Volume": 324435
+    },
+    {
+        "Date": 1700213040000,
+        "Open": 563,
+        "High": 563.4,
+        "Low": 563,
+        "Close": 563.3,
+        "Volume": 79718
+    },
+    {
+        "Date": 1700213100000,
+        "Open": 563.25,
+        "High": 563.4,
+        "Low": 563.15,
+        "Close": 563.15,
+        "Volume": 58856
+    },
+    {
+        "Date": 1700213160000,
+        "Open": 563.2,
+        "High": 563.3,
+        "Low": 563.1,
+        "Close": 563.2,
+        "Volume": 58708
+    },
+    {
+        "Date": 1700213220000,
+        "Open": 563.15,
+        "High": 563.55,
+        "Low": 563.1,
+        "Close": 563.45,
+        "Volume": 85113
+    },
+    {
+        "Date": 1700213280000,
+        "Open": 563.3,
+        "High": 563.5,
+        "Low": 563.15,
+        "Close": 563.4,
+        "Volume": 75284
+    },
+    {
+        "Date": 1700213340000,
+        "Open": 563.25,
+        "High": 563.45,
+        "Low": 563.15,
+        "Close": 563.2,
+        "Volume": 65837
+    },
+    {
+        "Date": 1700213400000,
+        "Open": 563.2,
+        "High": 563.45,
+        "Low": 563.05,
+        "Close": 563.35,
+        "Volume": 106840
+    },
+    {
+        "Date": 1700213460000,
+        "Open": 563.25,
+        "High": 563.45,
+        "Low": 563.15,
+        "Close": 563.45,
+        "Volume": 58623
+    },
+    {
+        "Date": 1700213520000,
+        "Open": 563.3,
+        "High": 563.6,
+        "Low": 563.25,
+        "Close": 563.5,
+        "Volume": 102945
+    },
+    {
+        "Date": 1700213580000,
+        "Open": 563.4,
+        "High": 563.7,
+        "Low": 563.35,
+        "Close": 563.65,
+        "Volume": 127769
+    },
+    {
+        "Date": 1700213640000,
+        "Open": 563.65,
+        "High": 563.7,
+        "Low": 563.35,
+        "Close": 563.6,
+        "Volume": 107671
+    },
+    {
+        "Date": 1700213700000,
+        "Open": 563.6,
+        "High": 563.7,
+        "Low": 563.4,
+        "Close": 563.45,
+        "Volume": 76603
+    },
+    {
+        "Date": 1700213760000,
+        "Open": 563.5,
+        "High": 563.7,
+        "Low": 563.3,
+        "Close": 563.55,
+        "Volume": 99248
+    },
+    {
+        "Date": 1700213820000,
+        "Open": 563.5,
+        "High": 563.65,
+        "Low": 563.35,
+        "Close": 563.35,
+        "Volume": 97237
+    },
+    {
+        "Date": 1700213880000,
+        "Open": 563.4,
+        "High": 563.6,
+        "Low": 563.3,
+        "Close": 563.5,
+        "Volume": 100342
+    },
+    {
+        "Date": 1700213940000,
+        "Open": 563.35,
+        "High": 563.6,
+        "Low": 563.3,
+        "Close": 563.5,
+        "Volume": 126109
+    },
+    {
+        "Date": 1700214000000,
+        "Open": 563.7,
+        "High": 563.85,
+        "Low": 563.4,
+        "Close": 563.55,
+        "Volume": 148038
+    },
+    {
+        "Date": 1700214060000,
+        "Open": 563.55,
+        "High": 563.65,
+        "Low": 563.2,
+        "Close": 563.2,
+        "Volume": 103499
+    },
+    {
+        "Date": 1700214120000,
+        "Open": 563.2,
+        "High": 563.35,
+        "Low": 563.05,
+        "Close": 563.15,
+        "Volume": 87722
+    },
+    {
+        "Date": 1700214180000,
+        "Open": 563.15,
+        "High": 563.2,
+        "Low": 563,
+        "Close": 563.1,
+        "Volume": 109502
+    },
+    {
+        "Date": 1700214240000,
+        "Open": 563.2,
+        "High": 563.4,
+        "Low": 563,
+        "Close": 563.4,
+        "Volume": 158359
+    },
+    {
+        "Date": 1700214300000,
+        "Open": 563.4,
+        "High": 563.75,
+        "Low": 563.15,
+        "Close": 563.55,
+        "Volume": 233396
+    },
+    {
+        "Date": 1700214360000,
+        "Open": 563.6,
+        "High": 563.6,
+        "Low": 563.15,
+        "Close": 563.35,
+        "Volume": 148287
+    },
+    {
+        "Date": 1700214420000,
+        "Open": 563.4,
+        "High": 563.4,
+        "Low": 563,
+        "Close": 563.05,
+        "Volume": 210413
+    },
+    {
+        "Date": 1700214480000,
+        "Open": 563,
+        "High": 563.15,
+        "Low": 562.75,
+        "Close": 562.9,
+        "Volume": 216136
+    },
+    {
+        "Date": 1700214540000,
+        "Open": 563,
+        "High": 563.05,
+        "Low": 562.9,
+        "Close": 563,
+        "Volume": 145753
+    },
+    {
+        "Date": 1700214600000,
+        "Open": 563,
+        "High": 563.15,
+        "Low": 562.35,
+        "Close": 562.7,
+        "Volume": 448133
+    },
+    {
+        "Date": 1700214660000,
+        "Open": 562.65,
+        "High": 563,
+        "Low": 562.6,
+        "Close": 563,
+        "Volume": 164347
+    },
+    {
+        "Date": 1700214720000,
+        "Open": 562.95,
+        "High": 563.1,
+        "Low": 562.75,
+        "Close": 563,
+        "Volume": 173638
+    },
+    {
+        "Date": 1700214780000,
+        "Open": 563.05,
+        "High": 563.1,
+        "Low": 562.9,
+        "Close": 563.1,
+        "Volume": 148979
+    },
+    {
+        "Date": 1700214840000,
+        "Open": 563.05,
+        "High": 563.2,
+        "Low": 562.85,
+        "Close": 563,
+        "Volume": 167571
+    },
+    {
+        "Date": 1700214900000,
+        "Open": 562.95,
+        "High": 563.05,
+        "Low": 562.5,
+        "Close": 562.85,
+        "Volume": 295297
+    },
+    {
+        "Date": 1700214960000,
+        "Open": 562.8,
+        "High": 562.95,
+        "Low": 562.5,
+        "Close": 562.9,
+        "Volume": 308945
+    },
+    {
+        "Date": 1700215020000,
+        "Open": 562.85,
+        "High": 562.9,
+        "Low": 562.45,
+        "Close": 562.5,
+        "Volume": 266255
+    },
+    {
+        "Date": 1700215080000,
+        "Open": 562.5,
+        "High": 562.65,
+        "Low": 562.4,
+        "Close": 562.55,
+        "Volume": 212862
+    },
+    {
+        "Date": 1700215140000,
+        "Open": 562.55,
+        "High": 562.9,
+        "Low": 562.45,
+        "Close": 562.9,
+        "Volume": 119965
+    }
+]
+    
+    // set data to all series
+    valueSeries.data.setAll(data);
+    volumeSeries.data.setAll(data);
+    sbSeries.data.setAll(data);
+    
+    }); // end am5.ready()
+    </script>
+    
+    <!-- HTML -->
+    <div id="chartcontrols"></div>
+    <div id="chartdiv"></div>

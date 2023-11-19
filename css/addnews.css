@@ -1,0 +1,100 @@
+body {
+    background: -webkit-linear-gradient(bottom, #2dbd6e, #a6f77b);
+    background-repeat: no-repeat;
+    margin: 0;
+}
+
+.form-container {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    width: 50%;
+    text-align: center;
+    position: relative;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+}
+
+.form-container h2 {
+    font-size: 24px;
+    margin: 0 0 20px;
+}
+
+.form-container textarea{
+    height: 100px;
+    width: 100%;
+}
+
+.form-group {
+    display: flex;
+align-items: flex-start;
+/* justify-content: space-between; */
+gap: 0.2rem;  
+flex-direction: column;
+    margin-bottom: 15px;
+}
+
+label {
+    font-size: 16px;
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.form-actions {
+    margin-top: 20px;
+}
+
+button {
+    background-color: #2dbd6e;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #2ec06f;
+}
+
+.switch-form {
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+a {
+    color: #2dbd6e;
+    text-decoration: none;
+}
+
+input[type="number"]::-webkit-inner-spin-button{
+    display:none;
+
+}
+
+input[type="number"]{
+    -moz-appearance:textfield;
+}
+
+.error-message{
+    color: red;
+}
+
+.success-message{
+    color: green;
+}
+
